@@ -36,14 +36,14 @@ export class HypnoState extends BaseState {
             if (this.Active) return true;
             return next(args);
         }, ModuleCategory.States);
-        
+
         hookFunction("Player.GetTints", 4, (args, next) => {
             if (!this.StateModule.Enabled || !Player.ImmersionSettings?.AllowTints)
                 return next(args);
             if (this.Active) return [{r: 148, g: 0, b: 211, a: 0.4}];
             return next(args);
         }, ModuleCategory.States);
-            
+
         hookFunction("Player.GetBlurLevel", 4, (args, next) => {
             if (!this.StateModule.Enabled || !Player.GraphicsSettings?.AllowBlur)
                 return next(args);
@@ -117,17 +117,27 @@ export class HypnoState extends BaseState {
         "%NAME%'s mouth falls silent once again..."
     ];
 
+    _lastHypnoblockString = -1;
+
     IdleEmote() {
-        if (this.Active)
-            SendAction(this.hypnoBlockStrings[getRandomInt(this.hypnoBlockStrings.length)]);
+        if (this.Active) {
+            let i;
+
+            do {
+                i = getRandomInt(this.hypnoBlockStrings.length);
+            }
+            while (i == this._lastHypnoblockString);
+            this._lastHypnoblockString = i;
+            SendAction(this.hypnoBlockStrings[i]);
+        }
     }
 
     // Hypnosis Handling
     SetHypnotizedFace() {
         if (this.Active) {
-            setOrIgnoreBlush("Medium");
-            CharacterSetFacialExpression(Player, "Fluids", "DroolLow");    
-            CharacterSetFacialExpression(Player, "Mouth", null);   
+            // setOrIgnoreBlush("Medium");
+            CharacterSetFacialExpression(Player, "Fluids", "DroolLow");
+            CharacterSetFacialExpression(Player, "Mouth", null);
             this.SetHypnoEyes();
             ChatRoomCharacterUpdate(Player);
         }
@@ -149,7 +159,7 @@ export class HypnoState extends BaseState {
         var eyeAsset1 = AssetGet("Female3DCG", "Eyes", "Eyes" + hypnoSettings.hypnoEyeType ?? 9);
         if (!eyeAsset1)
             eyeAsset1 = AssetGet("Female3DCG", "Eyes", "Eyes9");
-        
+
             var eyeAsset2 = AssetGet("Female3DCG", "Eyes2", "Eyes" + hypnoSettings.hypnoEyeType ?? 9);
         if (!eyeAsset2)
             eyeAsset2 = AssetGet("Female3DCG", "Eyes", "Eyes9");
@@ -161,7 +171,7 @@ export class HypnoState extends BaseState {
         if (!!eyes1) {
             eyes1.Asset = eyeAsset1 ?? eyes1.Asset;
             eyes1.Color = hypnoEyeColors ?? "#A2A2A2";
-        }    
+        }
         if (!!eyes2) {
             eyes2.Asset = eyeAsset2  ?? eyes2.Asset;
             eyes2.Color = hypnoEyeColors ?? "#A2A2A2";
@@ -181,7 +191,7 @@ export class HypnoState extends BaseState {
         if (!!eyes1) {
             eyes1.Asset = eyeAsset1 ?? <Asset>{};
             eyes1.Color = this.extensions["existingEye1Color"];
-        }    
+        }
         if (!!eyes2) {
             eyes2.Asset = eyeAsset2  ?? <Asset>{};
             eyes2.Color = this.extensions["existingEye2Color"];
@@ -204,7 +214,7 @@ export class HypnoState extends BaseState {
             ActivitySetArousal(Player, progress);
         }
     }
-    
+
     AllowSpeech() {
         if (this.Active && this.Restrictions.Speech != "false") {
             this.Restrictions.Speech = "false";

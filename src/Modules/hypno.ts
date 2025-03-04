@@ -150,6 +150,51 @@ export class HypnoModule extends BaseModule {
                 }
             },
             {
+                Tag: 'punzonk',
+                Description: ": Awaken yourself (silent, partial)",
+                Action: () => {
+                    if (!this.Enabled)
+                        return;
+
+                    if (this.StateModule.settings.immersive) {
+                        LSCG_SendLocal("unzonk disabled while immersive");
+                        return;
+                    }
+                    if (this.hypnoActivated) {
+                        this.StateModule.HypnoState.Recover();
+
+                        this.StateModule.HypnoState.config.active = false;
+                        this.StateModule.HypnoState.config.recoveredAt = new Date().getTime();
+                        settingsSave(true);
+                    }
+                }
+            },
+            {
+                Tag: 'allowspeech',
+                Description: ": Allow speech triggers",
+                Action: () => {
+                    if (!this.Enabled || !this.hypnoActivated)
+                        return;
+
+                    if (this.StateModule.HypnoState.Active && this.StateModule.HypnoState.Restrictions.Speech != "false") {
+                        this.StateModule.HypnoState.Restrictions.Speech = "false";
+                    }
+                }
+            },
+            {
+                Tag: 'denyspeech',
+                Description: ": Deny speech triggers",
+                Action: () => {
+                    if (!this.Enabled || !this.hypnoActivated)
+                        return;
+
+                    if (this.StateModule.HypnoState.Active && this.StateModule.HypnoState.Restrictions.Speech != "true") {
+                        this.StateModule.HypnoState.Restrictions.Speech = "true";
+                    }
+                }
+            },
+
+            {
                 Tag: 'print-settings',
                 Description: ": Print current settings",
                 Action: () => {
