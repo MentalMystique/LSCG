@@ -161,8 +161,6 @@ export class HypnoModule extends BaseModule {
                         return;
                     }
                     if (this.hypnoActivated) {
-                        this.StateModule.HypnoState.Recover();
-
                         this.StateModule.HypnoState.config.active = false;
                         this.StateModule.HypnoState.config.recoveredAt = new Date().getTime();
                         settingsSave(true);
