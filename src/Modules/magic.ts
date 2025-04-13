@@ -240,6 +240,10 @@ export class MagicModule extends BaseModule {
     CanUseMagic(target: Character, checkMagicItem: boolean = true, requireHands: boolean = true) {
         let item = InventoryGet(Player, "ItemHandheld");
         let isWieldingMagicItem = (checkMagicItem) ? (!!item && this.IsMagicItem(item)) : true;
+        if (!isWieldingMagicItem) {
+            item = InventoryGet(Player, "ItemNeck");
+            isWieldingMagicItem = (checkMagicItem) ? (!!item && this.IsMagicItem(item)) : true;
+        }
         let hasItemPermission = ServerChatRoomGetAllowItem(Player, target);
         let targetHasMagicEnabled = (target as OtherCharacter).LSCG?.MagicModule?.enabled;
         let whitelisted = !(target as OtherCharacter).LSCG?.MagicModule?.requireWhitelist || (!!Player.MemberNumber && target.WhiteList.indexOf(Player.MemberNumber) > -1) || target.IsPlayer();
