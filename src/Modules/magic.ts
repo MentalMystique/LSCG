@@ -476,6 +476,28 @@ export class MagicModule extends BaseModule {
         return teachingActionStrings[getRandomInt(teachingActionStrings.length)];
     }
 
+    getCastingActionStringMM(spell: SpellDefinition, voiceCast: boolean, target: Character, paired?: Character): string {
+        let item = InventoryGet(Player, "ItemHandheld");
+
+        if (item && this.IsMagicItem(item)) {
+            return this.getCastingActionString(spell, item, voiceCast, target, paired);
+        }
+
+        item = InventoryGet(Player, "ItemNeck");
+
+        if (item && this.IsMagicItem(item)) {
+            let neckCastingActionStrings: string[] = [
+                `%NAME%'s ${!!item ? (item?.Craft?.Name ?? item?.Asset.Description) : "necklace"} glows with power as %NAME% casts ${spell.Name} on %OPP_NAME%`,
+                `%NAME% channels power through %POSSESSIVE% ${!!item ? (item?.Craft?.Name ?? item?.Asset.Description) : "necklace"} and casts ${spell.Name} on %OPP_NAME%`,
+                `With a surge of magic, %NAME% ignites %POSSESSIVE% ${!!item ? (item?.Craft?.Name ?? item?.Asset.Description) : "necklace"} and casts ${spell.Name} on %OPP_NAME%`,
+            ];
+
+            return neckCastingActionStrings[getRandomInt(neckCastingActionStrings.length)];
+        }
+
+        return this.getCastingActionString(spell, null, voiceCast, target, paired);
+    }
+
     getCastingActionString(spell: SpellDefinition, item: Item | null, voiceCast: boolean, target: Character, paired?: Character): string {
         let itemName = !!item ? (item?.Craft?.Name ?? item?.Asset.Description) : "wand";
         let pairedDefaultStr = `${!!paired ? ", the spell's power also arcing to " + CharacterNickname(paired) + "." : "."}`;
@@ -507,8 +529,12 @@ export class MagicModule extends BaseModule {
         if (!!spell && !!spellTarget) {
             let wand = InventoryGet(Player, "ItemHandheld");
 
+            if (!wand || !this.IsMagicItem(wand)) {
+                wand = InventoryGet(Player, "ItemNeck");
+            }
+
             if (autoBackfire && !spellTarget.IsPlayer()) {
-                SendAction(this.getCastingActionString(spell, InventoryGet(Player, "ItemHandheld"), voiceCast, spellTarget, pairedTarget), spellTarget);
+                SendAction(this.getCastingActionStringMM(spell, voiceCast, spellTarget, pairedTarget), spellTarget);
 
                 setTimeout(() => {
                     const backfireActionStrings = [
@@ -517,7 +543,7 @@ export class MagicModule extends BaseModule {
                         `The spell backfires, hitting %NAME% %INTENSIVE% instead of %OPP_NAME%!`,
                     ]
 
-                    SendAction(backfireActionStrings[getRandomInt(backfireActionStrings.length)]);
+                    SendAction(backfireActionStrings[getRandomInt(backfireActionStrings.length)], spellTarget);
 
                     setTimeout(() => this.IncomingSpell(Player, spell, pairedTarget, 1), 1000);
                 }, 500 + (100 * getRandomInt(5)));
@@ -545,7 +571,8 @@ export class MagicModule extends BaseModule {
                 return;
             }
             else {
-                SendAction(this.getCastingActionString(spell, InventoryGet(Player, "ItemHandheld"), voiceCast, spellTarget, pairedTarget), spellTarget);
+                // SendAction(this.getCastingActionString(spell, InventoryGet(Player, "ItemHandheld"), voiceCast, spellTarget, pairedTarget), spellTarget);
+                SendAction(this.getCastingActionStringMM(spell, voiceCast, spellTarget, pairedTarget), spellTarget);
             }
 
             if (spellTarget.IsPlayer()) {
