@@ -112,7 +112,101 @@ export class HypnoModule extends BaseModule {
     }
 
     get commands(): ICommand[] {
-        return [{
+        return [
+
+            {
+                Tag: 'szonk',
+                Description: ": Hypnotize yourself (silent)",
+                Action: () => {
+                    if (!this.Enabled)
+                        return;
+
+                    if (this.StateModule.settings.immersive) {
+                        LSCG_SendLocal("zonk disabled while immersive");
+                        return;
+                    }
+                    if (!this.hypnoActivated)
+                        this.cooldownMsgSent = false;
+                    this.settings.triggerCycled = false;
+                    if (!AudioShouldSilenceSound(true))
+                        AudioPlaySoundEffect("SciFiEffect", 1);
+
+                    this.settings.stats.hypnotizedCount++;
+                    this.StateModule.HypnoState.Activate(Player.MemberNumber);
+                }
+            },
+            {
+                Tag: 'sunzonk',
+                Description: ": Awaken yourself (silent)",
+                Action: () => {
+                    if (!this.Enabled)
+                        return;
+
+                    if (this.StateModule.settings.immersive) {
+                        LSCG_SendLocal("unzonk disabled while immersive");
+                        return;
+                    }
+                    if (this.hypnoActivated)
+                        this.TriggerRestore();
+                }
+            },
+            {
+                Tag: 'punzonk',
+                Description: ": Awaken yourself (silent, partial)",
+                Action: () => {
+                    if (!this.Enabled)
+                        return;
+
+                    if (this.StateModule.settings.immersive) {
+                        LSCG_SendLocal("unzonk disabled while immersive");
+                        return;
+                    }
+                    if (this.hypnoActivated) {
+                        this.StateModule.HypnoState.config.active = false;
+                        this.StateModule.HypnoState.config.recoveredAt = new Date().getTime();
+                        settingsSave(true);
+                    }
+                }
+            },
+            {
+                Tag: 'allowspeech',
+                Description: ": Allow speech triggers",
+                Action: () => {
+                    if (!this.Enabled || !this.hypnoActivated)
+                        return;
+
+                    if (this.StateModule.HypnoState.Active && this.StateModule.HypnoState.Restrictions.Speech != "false") {
+                        this.StateModule.HypnoState.Restrictions.Speech = "false";
+                    }
+                }
+            },
+            {
+                Tag: 'denyspeech',
+                Description: ": Deny speech triggers",
+                Action: () => {
+                    if (!this.Enabled || !this.hypnoActivated)
+                        return;
+
+                    if (this.StateModule.HypnoState.Active && this.StateModule.HypnoState.Restrictions.Speech != "true") {
+                        this.StateModule.HypnoState.Restrictions.Speech = "true";
+                    }
+                }
+            },
+
+            {
+                Tag: 'print-settings',
+                Description: ": Print current settings",
+                Action: () => {
+                    if (!this.Enabled)
+                        return;
+
+                    console.log(this);
+                    LSCG_SendLocal("Settings printed to console");
+                }
+            }
+
+            ,
+            {
 			Tag: 'zonk',
 			Description: ": Hypnotize yourself",
 			Action: () => {
@@ -229,13 +323,13 @@ export class HypnoModule extends BaseModule {
             if (!this.Enabled)
                 return;
             var lowerMsgWords = parseMsgWords(msg);
-            if ((lowerMsgWords?.indexOf("snaps") ?? -1) >= 0 && 
+            if ((lowerMsgWords?.indexOf("snaps") ?? -1) >= 0 &&
                 sender?.MemberNumber != Player.MemberNumber &&
                 this.hypnoActivated) {
                 this.TriggerRestoreSnap();
             }
         });
-        
+
         OnActivity(1, ModuleCategory.Hypno, (data, sender, msg, metadata) => {
             if (!this.Enabled)
                 return;
@@ -262,7 +356,7 @@ export class HypnoModule extends BaseModule {
                     if (!this.TopLevelCheckTriggers(msg, sender))
                         return false;
                     return { msg: newMsg }
-                } 
+                }
                 return false;
             }
         });
@@ -278,7 +372,7 @@ export class HypnoModule extends BaseModule {
                 var now = CommonTime();
                 let triggerTimer = (this.settings.triggerTime ?? 5) * 60000;
                 let hypnoEnd = this.StateModule.HypnoState.config.activatedAt + triggerTimer;
-                
+
                 if (this.hypnoActivated && this.settings.triggerTime > 0 && hypnoEnd < now) {
                     // Hypno Trigger Timeout --
                     this.TriggerRestoreTimeout();
@@ -314,7 +408,7 @@ export class HypnoModule extends BaseModule {
 
         // Set Trigger
         if (!this.settings.trigger) {
-            this.settings.trigger = this.getNewTriggerWord();            
+            this.settings.trigger = this.getNewTriggerWord();
         }
 
         (<any>window).LSCG_SuggestionEnd = () => this.MiniGameEnd(MiniGameVictory);
@@ -339,7 +433,7 @@ export class HypnoModule extends BaseModule {
                 }
             });
         }
-    }    
+    }
 
     TopLevelCheckTriggers(msg: string, sender: Character) {
         if (!this.Enabled || (ChatRoomIsViewActive(ChatRoomMapViewName) && (!!sender.MapData && !ChatRoomMapViewCharacterIsHearable(sender))))
@@ -353,8 +447,8 @@ export class HypnoModule extends BaseModule {
             var names = [CharacterNickname(Player)];
             if (!!Player.Name && names.indexOf(Player.Name) == -1)
                 names.push(Player.Name);
-            if (names.some(n => isPhraseInString(lowerMsg, n)) || 
-                this.StateModule.HypnoState.config.activatedBy == sender.MemberNumber || 
+            if (names.some(n => isPhraseInString(lowerMsg, n)) ||
+                this.StateModule.HypnoState.config.activatedBy == sender.MemberNumber ||
                 this.StateModule.HypnoState.config.activatedBy == -1 ||
                 sender.MemberNumber == Player.MemberNumber) {
                 if (this.CheckAwakener(msg, sender)) {
@@ -366,7 +460,7 @@ export class HypnoModule extends BaseModule {
             else
                 msg =  msg.replace(/\S/gm, '-');
         }
-        
+
         if (this.settings.allowSuggestions)
             this.CheckSuggestions(msg, sender);
 
@@ -547,7 +641,7 @@ export class HypnoModule extends BaseModule {
 
     DelayedTrigger(activityEntry: ActivityEntryModel, memberNumber: number = 0, isSleep: boolean = false) {
         let entryName = activityEntry.group + "-" + activityEntry.name;
-        
+
         setTimeout(() => {
             let activation = this.delayedActivations.get(entryName);
             if (!!activation) {
@@ -555,7 +649,7 @@ export class HypnoModule extends BaseModule {
                 this.delayedActivations.set(entryName, activation);
             }
         }, 5 * 60 * 1000);
-        
+
         let count = this.delayedActivations.get(entryName) ?? 0;
         count++;
         if (count >= activityEntry.hypnoRequiredRepeats) {
@@ -609,9 +703,9 @@ export class HypnoModule extends BaseModule {
 
         let matched = triggers.some(trigger => {
             return isPhraseInString(msg, trigger);
-        })        
+        })
 
-        return (matched && 
+        return (matched &&
             (awakener ? this.hypnoActivated : !this.hypnoActivated) &&
             this.allowedSpeaker(sender))
     }
@@ -637,12 +731,12 @@ export class HypnoModule extends BaseModule {
         this.settings.triggerCycled = false;
         if (!AudioShouldSilenceSound(true))
             AudioPlaySoundEffect("SciFiEffect", 1);
-        
+
         if (wasWord)
             SendAction("%NAME%'s eyes immediately defocus, %POSSESSIVE% posture slumping slightly as %PRONOUN% loses control of %POSSESSIVE% body at the utterance of a trigger word.");
         else
             SendAction("%NAME%'s eyes glaze over, %POSSESSIVE% posture slumping weakly as %PRONOUN% loses control of %POSSESSIVE% body.");
-        
+
         this.settings.stats.hypnotizedCount++;
         this.StateModule.HypnoState.Activate(memberNumber);
     }
@@ -668,7 +762,7 @@ export class HypnoModule extends BaseModule {
         this.TriggerRestore();
     }
 
-    TriggerRestore() {        
+    TriggerRestore() {
         if (!AudioShouldSilenceSound(true))
             AudioPlaySoundEffect("SpankSkin");
         this.StateModule.HypnoState.Recover();
@@ -760,7 +854,7 @@ export class HypnoModule extends BaseModule {
 
     AttemptResistSuggestion(suggestion: HypnoSuggestion, sender: Character, command: string) {
         // Attempt resist roll!
-        // Send emote or private whisper to sender informing of the resist 
+        // Send emote or private whisper to sender informing of the resist
         let roll = this.GetResistRoll();
         let influence = this.GetSuggestionInfluence(suggestion, sender);
         if (roll > influence) {
@@ -793,7 +887,7 @@ export class HypnoModule extends BaseModule {
         this.IncreaseSpeakerInfluence(sender.MemberNumber ?? -1);
         if (suggestion.installedBy != sender.MemberNumber)
             this.IncreaseSpeakerInfluence(suggestion.installedBy);
-        
+
         suggestion.instructions.forEach((instruction, ix, arr) => {
             setTimeout(() => {
                 let config = instruction.arguments["config"];
@@ -881,7 +975,7 @@ export class HypnoModule extends BaseModule {
             </div>`;
 		const div = htmlToElement(resistDiv);
 		ChatRoomAppendChat(div as HTMLElement);
-		const accbtn = document.getElementById(`suggestion-submit-${senderId}-${suggestion.id}-${timeKey}`);		
+		const accbtn = document.getElementById(`suggestion-submit-${senderId}-${suggestion.id}-${timeKey}`);
 		const decbtn = document.getElementById(`suggestion-resist-${senderId}-${suggestion.id}-${timeKey}`);
 		accbtn?.addEventListener("click", (_ => this.ClickSuggestionButton(suggestion, sender, msg, false, [accbtn!, decbtn!])));
         decbtn?.addEventListener("click", (_ => this.ClickSuggestionButton(suggestion, sender, msg, true, [accbtn!, decbtn!])));
@@ -928,20 +1022,20 @@ export class HypnoModule extends BaseModule {
         if (!!poseSelection.full) {
             if (PoseCategoryAvailable(Player, "BodyFull"))
                 PoseSetActive(Player, poseSelection.full);
-            else 
+            else
                 blocked = true;
         }
         else {
             if (!!poseSelection.lower) {
                 if (PoseCategoryAvailable(Player, "BodyLower"))
                     PoseSetActive(Player, poseSelection.lower);
-                else 
+                else
                     blocked = true;
             }
             if (!!poseSelection.upper) {
                 if (PoseCategoryAvailable(Player, "BodyUpper"))
                     PoseSetActive(Player, poseSelection.upper);
-                else 
+                else
                     blocked = true;
             }
         }
@@ -1046,7 +1140,7 @@ export class HypnoModule extends BaseModule {
             this.ReduceSpeakerInfluence(opts.sender.MemberNumber ?? -1);
             return;
         }
-        
+
         let clothing = instruction.arguments["selection"] as ClothingSelection;
         if (!clothing || !clothing?.groups) {
             LSCG_SendLocal(`You feel a fuzzy confusion without complete instructions and shake a little bit of ${opts.senderName}'s influence.`);
@@ -1054,7 +1148,7 @@ export class HypnoModule extends BaseModule {
             return;
         }
         let groups = clothing.groups;
-        
+
 
         if (clothing.random) {
             let allGroups = AssetGroup
@@ -1069,13 +1163,13 @@ export class HypnoModule extends BaseModule {
         else if (clothing.all) {
             groups = AssetGroup.filter(g => g.Family === Player.AssetFamily && g.Category === "Appearance" && g.AllowCustomize && isCloth(g, false)).map(g => g.Name);
         }
-        
+
         SendAction(`%NAME% starts to remove clothing from %POSSESSIVE% body.`);
 
         groups.forEach(grp => {
             InventoryRemove(Player, grp as AssetGroupName, false);
         });
-        
+
         ChatRoomCharacterUpdate(Player);
         CharacterLoadCanvas(Player);
     }
